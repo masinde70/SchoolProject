@@ -1,7 +1,10 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.contrib.auth import authenticate, login
-from .forms import LoginForm, UserRegistrationForm
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic.edit import CreateView, FormMixin
+from .models import Auction
+from .forms import LoginForm, UserRegistrationForm, AuctionForm
 from django.contrib.auth.decorators import login_required
 
 
@@ -25,11 +28,13 @@ def register(request):
                   'auctionsapp/register.html',
                   {'user_form': user_form})
 
+
 @login_required
 def dashboard(request):
     return render(request,
                   'auctionsapp/dashboard.html',
                   {'section': 'dashboard'})
+
 
 def user_login(request):
     if request.method == 'POST':
@@ -42,7 +47,7 @@ def user_login(request):
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    return HttpResponse('Authenticated '\
+                    return HttpResponse('Authenticated '
                                         'successfully')
                 else:
                     return HttpResponse('Disabled auctionsapp')
@@ -51,3 +56,14 @@ def user_login(request):
     else:
         form = LoginForm()
     return render(request, 'auctionsapp/login.html', {'form': form})
+
+def AuctionCreateView(request):
+    if request.method == 'POST':
+        form = AuctionForm(request.POST)
+        if form.is_valid():
+           form.save()
+           return HttpResponse('Auction Created')
+    else:
+        form = AuctionForm()
+        return render(request,'auctionsapp/create.html', {'form':form})
+

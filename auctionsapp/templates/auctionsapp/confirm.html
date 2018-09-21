@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+{% block title %}Dashboard{% endblock %}
+
+    {% if error%}
+    <p> <b>{{ error }}</b> </p>
+    {% endif %}
+    <form action="{% url 'auction_confirm' %}" method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <a href="{% url 'dashboard' %}" class="btn btn-default">Cancel</a>
+        <input type="submit" value="Confirm" class="btn btn-success">
+    </form>
+{% endblock %}

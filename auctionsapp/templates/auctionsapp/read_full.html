@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Blog{% endblock %}
+
+{% block content %}
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h1>{{ auction.title }} </h1>
+    <a href="/auctions/{{ auction.id }}/edit">[edit]</a>
+    <a href="/auctions/{{ auction.id }}/delete">[delete]</a>
+    {% if request.user.is_superuser %}
+    <form action="{% url 'auction_ban' auction_id=auction.id %}" method="post" class="navbar-form" role="ban">
+      {%  csrf_token %}
+      <button class="btn btn-danger" type="submit">Ban</button>
+    </form>
+    {% endif %}
+    <hr>
+  </div>
+  <div class="panel-body">
+    <p>{{ auction.description }}</p>
+    <p>{{ auction.last_modified }}</p>
+  </div>
+</div>
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h2 class="pull-left">Bids</h2>
+    <a href="/auctions/{{ auction.id }}/bids/new" class="btn btn-default pull-right">New Bid</a>
+    <div class="clearfix"></div>
+    <hr>
+  </div>
+  <div class="panel-body">
+    <ul>
+    {% for bid in bids %}
+      <li>{{ bid.bidder.username }} - {{ bid.amount }}</li>
+    {% empty %}
+      <p>Be the first to bid on this auction</p>
+    {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{% endblock %}
