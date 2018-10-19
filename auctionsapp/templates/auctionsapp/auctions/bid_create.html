@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+<h2>Bid</h2>
+{% block content %}
+  <p><b>Bid on Auction</b></p>
+  {% if error%}
+    <p> <b>{{ error }}</b> </p>
+  {% endif %}
+  <form action="auctionsapp/{{ auction_id }}/bids/new" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Place Bid">
+  </form>
+{% endblock %}

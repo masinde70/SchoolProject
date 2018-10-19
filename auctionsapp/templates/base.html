@@ -7,21 +7,28 @@
 </head>
 <body>
   <div id="header">
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">
+            {{ message|safe }}
+              <a href="#" class="close">x</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
     <span class="logo">Auctions</span>
   {% if request.user.is_authenticated %}
       <ul class="menu">
         <li {% if section == "dashboard" %}class="selected"{% endif %}>
           <a href="{% url 'dashboard' %}">My dashboard</a>
         </li>
-        <li {% if section == "Auctions/new" %}class="selected"{% endif %}>
-          <a href="{% url 'create' %}">New Auction</a>
-        </li>
-        <li {% if section == "people" %}class="selected"{% endif %}>
-          <a href="#">People</a>
+        <li {% if section == "Auctions" %}class="selected"{% endif %}>
+          <a href="{% url 'Auction_list' %}">Auctions</a>
         </li>
       </ul>
     {% endif %}
-  
+
     <span class="user">
       {% if request.user.is_authenticated %}
         Hello {{ request.user.first_name }},
@@ -31,7 +38,18 @@
       {% endif %}
     </span>
   </div>
+  
   <div id="content">
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">
+            {{ message|safe }}
+              <a href="#" class="close">x</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
     {% block content %}
     {% endblock content %}
     <footer id="footer">Copyright &copy; 2018 Yet Another Auction Site</footer>

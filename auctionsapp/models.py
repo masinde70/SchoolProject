@@ -7,6 +7,8 @@ from django.core.exceptions import PermissionDenied, ImproperlyConfigured
 from datetime import datetime
 from django.core.mail import send_mail
 from .exceptions import  BannedAuctionException, DueAuctionException, DoneAuctionException
+from django.conf import settings
+
 
 
 # Create your models here.
@@ -29,12 +31,12 @@ class Auction(models.Model):
 
     class Meta:
         get_latest_by = "last_modified"
-    
+
     title = models.CharField(max_length=250) #This is the field for the auction title. This field is CharField, which translates into a VARCHAR column in the SQL database.
 
     slug  = models.SlugField(max_length=250, unique_for_date='publish') #This is a field intended to be used in URLs.
-    # A slug is a short label that contains only letters, numbers, underscore, or hyphens. 
-   
+    # A slug is a short label that contains only letters, numbers, underscore, or hyphens.
+
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auction_author') #This field is a foreign key. It defines a many-to-one relationship.
     # We are telling Django that each post is written by a user, and a user can write any number of posts
     photo = models.ImageField(upload_to='users/%Y/%m/%d/',
@@ -44,7 +46,7 @@ class Auction(models.Model):
         editable=False,
         help_text="When auction was created"
     )
-    
+
     deadline = models.DateField(
         help_text="Deadline for bids. Minimum of 3 days (dd/mm/yyyy).",
         validators=[validate_3_days_from_now]
@@ -99,7 +101,6 @@ class Auction(models.Model):
         Returns a negative integer for old version, zero for current version and positive integer for newer version.
         The value's magnitude corresponds to the difference in version.
         """
-        # @todo casting to int is a quick fix. Exception catching is required.
         return int(version) - self.version
 
     def send_email(self, title, message, author= True, bidders=True):
@@ -141,15 +142,7 @@ class Auction(models.Model):
         return bid_max['amount__max']
 
     class State:
-        """
-        Base state that provides common stateful methods for manipulating auctions.
-        This class should be subclassed with classes corresponding to an auctions states.
 
-        Note that stateful methods require the auction to be fetched and the methods used inside django.db.transaction.atomic().
-        Failing to do this might resolve in a concurrent access changing the state of the auction in-between us fetching it and performing an action.
-        Consider a user about to place a bid:
-        A fetched auction could be banned by an admin, but we still see the auction as active hence our bid will accepted.
-        """
         def __init__(self, auction):
             self._auction = auction
             self._initialized = datetime.now()
@@ -257,7 +250,7 @@ class DoneState(Auction.State):
                 title=self._auction.title
             )
         )
-    
+
 class DueState(Auction.State):
 
     """
@@ -298,3 +291,14 @@ def restore_activity_state(**kwargs):
     return auction.state
 
     models.signals.post_init.connect(restore_activity_state, Auction)
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL,
+                                on_delete=models.CASCADE)
+    date_of_birth = models.DateField(blank=True, null=True)
+    photo = models.ImageField(upload_to='users/%Y/%m/%d/',
+                              blank=True)
+
+    def __str__(self):
+        return 'Profile for user {}'.format(self.user.username)

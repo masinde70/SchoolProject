@@ -4,7 +4,7 @@
 
 {% block content %}
     <p><b>Delete: {{ object.title }}</b></p>
-    <form action="/auctions/{{ object.id }}/delete" method="post">
+    <form action="/auctionsapp/{{ object.id }}/delete" method="post">
         {% csrf_token %}
         <p>Are you sure you want to delete "{{ object }}"?</p>
         <input type="submit" value="Confirm" />
