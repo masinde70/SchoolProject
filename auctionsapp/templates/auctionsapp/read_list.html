@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
   {% for auction in object_list %}
-    <p><a href="auctionsapp/{{auction.id }}">{{ auction.id }} - {{ auction.title }}</a></p>
+    <p><a href="{% url 'read_list' %}">{{ auction.id }} - {{ auction.title }}</a></p>
   {% empty %}
     <p>No Auctions<p>
 {% endfor %}
 {% endblock %}
+

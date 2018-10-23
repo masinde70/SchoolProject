@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login
 from django.http import Http404
 from django.views import View
 from django.views.generic import ListView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.views.generic.edit import CreateView, FormMixin, DeleteView
 from .models import Auction, Bid, Profile
@@ -18,8 +18,10 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from rest_framework import generics
 from .exceptions import BannedAuctionException, DoneAuctionException, DueAuctionException
-from .tasks import auction_created
+from .tasks import auction_created,  ban_auction_email, create_bid_email, resolve_auction_email
 from .permissions import IsAuthorOrReadOnly
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 def register(request):
     if request.method == 'POST':
@@ -121,36 +123,96 @@ class AuctionConfirmView(AuctionCreateView):
         return FormMixin.form_valid(self, form)
 
 
-
+#Readfull
 class AuctionReadView(View):
     def get(self, request, auction_id):
         auction = get_object_or_404(Auction, pk=auction_id)
         bids = auction.bid_set.all().order_by('-amount')
-        response = render(
+        response = render(request, 'auctionsapp/read_full.html', {'auction': auction, 'bids': bids})
+        response.set_cookie('auction_version', auction.version)
+ 
+        return response
+#end readfull
+
+#edit auction
+class AuctionUpdateView(LoginRequiredMixin, View):
+
+    def get(self, request, auction_id):
+        try:
+            auction = Auction.objects.get(pk=auction_id)
+            if not auction.is_author(request.user):
+                raise PermissionDenied("user tried to edit someone else's auction")
+            form = AuctionForm(instance=auction)
+            return render(
+                request,
+                'auctionsapp/auction_edit.html',
+                {'form': form, 'auction': auction},
+                
+            )
+        except auction.DoesNotExist:
+            return self.not_found(request)
+        except PermissionDenied:
+            return self.invalid_author(request)
+
+
+    def post(self, request, auction_id):
+        try:
+            auction = Auction.objects.get(pk=auction_id)
+            if not auction.is_author(request.user):
+                raise PermissionDenied("user tried to edit someone else's auction")
+
+            form = AuctionForm(request.POST or None, instance=auction)
+            if form.is_valid():
+                '''
+                Make sure to increment version number of auction when committing update.
+                As the forms instance is set to this auction, form.save() will persist this change as well.
+                '''
+                auction.version += 1
+                form.save()
+                messages.add_message(request, messages.INFO, "Auction was edited")
+                return HttpResponseRedirect(reverse('auction_read', kwargs={'auction_id': auction.id}))
+            else:
+                messages.add_message(request, messages.ERROR, "Whoops, looks like some fields are invalid!")
+                return self.show_form(request, form)
+        except auction.DoesNotExist:
+            return self.not_found(request)
+        except PermissionDenied:
+            return self.invalid_author(request)
+
+
+    @staticmethod
+    def not_found(request):
+        messages.add_message(request, messages.ERROR, "Auction does not exists")
+        return HttpResponseRedirect(reverse('dashboard'))
+
+
+    @staticmethod
+    def invalid_author(request):
+        messages.add_message(request, messages.ERROR, "The auction does not belong to you.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
+
+    @staticmethod
+    def show_form(request, form):
+        return render(
             request,
-            'auctionsapp/read_full.html',
-            {'auction': auction, 'bids': bids},
+            'auction/auction_edit.html',
+            {'form': form},
             content_type='text/html'
         )
-        '''
-        Store version number of fetched auction in a cookie
-        so other views/operations can verify that the auction is not out of date.
-        '''
-        response.set_cookie('auction_version', auction.version)
-        return response
+
+#end edit auction view
 
 class AuctionListView(ListView):
-    queryset = Auction.objects.all()
     model = Auction
-    template_name = 'auctionsapp/auction_list.html'
-    content_type='text/html'
-
+    template_name = 'auctionsapp/read_list.html'
+    queryset = Auction.objects.all().exclude(persisted_state=Auction.STATE_BANNED)
 
 #Auction Delete View
 class AuctionDeleteView(LoginRequiredMixin, DeleteView):
     model = Auction
-    template_name = 'auctionsapp/delete.html'
-    pk_url_kwarg = 'auction_id'
+    template_name = 'auctionsapp/delete_auction.html'
+    
 
 
     def delete(self, request, *args, **kwargs):
@@ -188,9 +250,9 @@ class AuctionDetail(generics.RetrieveDestroyAPIView):
 class BidCreateView(LoginRequiredMixin, View):
     model = Auction
     form_class = BidForm
-    template_name = 'auctions/bid_create.html'
-    content_type='text/html'
+    template_name = 'auctionsapp/bid_create.html'
     pk_url_kwarg = 'auction_id'
+    content_type='text/html'
 
     def get(self, request, auction_id):
         auction = get_object_or_404(Auction, pk=auction_id)
@@ -203,7 +265,7 @@ class BidCreateView(LoginRequiredMixin, View):
             {'form': form, 'auction_id': auction_id},
             content_type=self.content_type
         )
-    
+
     def post(self, request, auction_id):
         from tasks import create_bid_email
         form = BidForm(request.POST or None)
@@ -226,7 +288,7 @@ class BidCreateView(LoginRequiredMixin, View):
                 if not self.compare_versions(auction):
                     raise ValidationError("Has been edited")
                 bid = auction.state.place_bid(request.user, amount) #try to place bid
-            
+
             email = create_bid_email(bid, auction)
             auction.send_email(email[0], email[1])
         except IntegrityError:
@@ -259,5 +321,29 @@ class BidCreateView(LoginRequiredMixin, View):
             )
             return False
         return True
+
+
+#Bid ban
+
+class AuctionBanView(LoginRequiredMixin, UserPassesTestMixin, View):
+
+    def post(self, request, auction_id):
+            try:
+                with transaction.atomic():
+                    auction = get_object_or_404(Auction, pk=auction_id)
+                    if auction.persisted_state == Auction.STATE_ACTIVE:
+                        auction.persisted_state = Auction.STATE_BANNED
+                        auction.save()
+                    else:
+                        raise IntegrityError("cannot ban auctions that aren't active")
+                messages.add_message(request, messages.INFO, "This auction is now banned.")
+                email = ban_auction_email(auction)
+                auction.send_email(email[0], email[1])
+            except IntegrityError:
+                messages.add_message(request, messages.INFO, "This auction is not active and cannot be banned.")
+            return HttpResponseRedirect(reverse('auction_read', kwargs={'auction_id': auction_id}))
+
+    def test_func(self):
+        return self.request.user.is_superuser
 
 

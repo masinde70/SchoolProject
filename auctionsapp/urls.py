@@ -21,19 +21,22 @@ path('reset/done/', auth_views.PasswordResetCompleteView.as_view(),name='passwor
 path('register/', views.register, name='register'),
 # create auction
 path('create/', views.AuctionCreateView.as_view(), name='create'),
+#edit profile
 path('edit/', views.edit, name='edit'),
 #List
-path('Auction_list/', views.AuctionListView.as_view(),  name="Auction_list"),
+path('read_list/', views.AuctionListView.as_view(),  name="read_list"),
 #confirm
 path('create/auctions/new', views.AuctionConfirmView.as_view(), name='confirm'),
+#edit
+path('<int:auction_id>/edit', views.AuctionUpdateView.as_view(), name='auction_edit'),
 #delete
-path('<auction_id>\d+/delete$', views.AuctionDeleteView.as_view(), name='auction_delete'),
+path('<int:pk>/delete', views.AuctionDeleteView.as_view(), name='delete_auction'),
 #read full
-path('read_full/(?P<auction_id>\d+)$', views.AuctionReadView.as_view(), name='auction_read'),
+path('<int:auction_id>', views.AuctionReadView.as_view(), name='auction_read'),
 path('confirm/',views.AuctionConfirmView, name='auction_confirm'),
 # Bid for an auction
-path('create_bid/(?P<auction_id>\d+)/bids/new', views.BidCreateView.as_view(), name='bid_create'),
-#path('bid/', views.AuctionBid.as_view, name='Bid'),
+path('<int:auction_id>', views.BidCreateView.as_view(), name='bid_create'),
+
 #api
 path('api/', views.ApiAuctionListView.as_view()),
 path('api/<int:pk>', views.AuctionDetail.as_view()),

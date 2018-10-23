@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}auction{% endblock %}
+{% block title %}Auctions{% endblock %}
 
 {% block content %}
 <div class="panel panel-default">
   <div class="panel-heading">
     <h1>{{ auction.title }} </h1>
-    <a href="/auctionsapp/{{ auction.id }}/edit">[edit]</a>
-    <a href="/auctionsapp/{{auction.id }}/delete">[delete]</a>
+    <a href="{% url 'auction_edit' auction.id %}">[edit]</a>
+    <a href="{% url 'delete_auction' auction.id%}">[delete]</a>
     {% if request.user.is_superuser %}
-    <form action="{% url 'auction_ban' auction_id=auction.id %}" method="post" class="navbar-form" role="ban">
+    <form action="{% url 'auction_ban' auction.id %}" method="post" class="navbar-form" role="ban">
       {%  csrf_token %}
       <button class="btn btn-danger" type="submit">Ban</button>
     </form>
@@ -24,7 +24,7 @@
 <div class="panel panel-default">
   <div class="panel-heading">
     <h2 class="pull-left">Bids</h2>
-    <a href="/auctionsapp/{{ auction.id }}/bids/new" class="btn btn-default pull-right">New Bid</a>
+    <a href="{% url 'bid_create' auction.id %}" class="btn btn-default pull-right">New Bid</a>
     <div class="clearfix"></div>
     <hr>
   </div>

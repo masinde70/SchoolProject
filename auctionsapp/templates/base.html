@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>{% block title %}{% endblock %}</title>
+  <title>{% block title %}Auctions{% endblock %}</title>
   <link href="{% static 'css/base.css' %}" rel="stylesheet">
 </head>
 <body>
@@ -24,7 +24,7 @@
           <a href="{% url 'dashboard' %}">My dashboard</a>
         </li>
         <li {% if section == "Auctions" %}class="selected"{% endif %}>
-          <a href="{% url 'Auction_list' %}">Auctions</a>
+          <a href="{% url 'read_list' %}">Auctions</a>
         </li>
       </ul>
     {% endif %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Auction Created{% endblock %}
+{% block title %}Add Auction{% endblock %}
 {% block content %}
 <form action="{% url 'auction_confirm' %}" method="post">
     {{ form.as_p }}
