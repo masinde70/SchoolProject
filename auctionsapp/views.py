@@ -7,8 +7,10 @@ from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin, LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.views.generic.edit import CreateView, FormMixin, DeleteView
+from django.utils import timezone
+from django.views.generic.detail import DetailView
 from .models import Auction, Bid, Profile
-from .serializers import AuctionSerializer
+from .serializers import AuctionSerializer, BidSerializer
 from auctionsapp.models import Auction
 from django.shortcuts import render, get_object_or_404
 from django.contrib import messages
@@ -17,11 +19,15 @@ from .forms import LoginForm, UserRegistrationForm, AuctionForm, UserEditForm, P
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from rest_framework import generics
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 from .exceptions import BannedAuctionException, DoneAuctionException, DueAuctionException
 from .tasks import auction_created,  ban_auction_email, create_bid_email, resolve_auction_email
 from .permissions import IsAuthorOrReadOnly
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.utils.translation import gettext as _
 
 def register(request):
     if request.method == 'POST':
@@ -62,8 +68,7 @@ def edit(request):
             messages.error(request, 'Error updating your profile')
     else:
         user_form = UserEditForm(instance=request.user)
-        profile_form = ProfileEditForm(
-                                    instance=request.user.profile)
+        profile_form = ProfileEditForm(instance=request.user.profile)
     return render(request,
                   'auctionsapp/edit.html',
                   {'user_form': user_form,
@@ -121,7 +126,17 @@ class AuctionConfirmView(AuctionCreateView):
         have to call form_valid in FormMixin to avoid this issue.
         '''
         return FormMixin.form_valid(self, form)
+#Auction Detail
+class AuctionDetailView(DetailView):
+   # model = Auction
+    template_name = 'auctionsapp/auction_detail.html'
+    queryset = Auction.objects.all()
 
+    def get_object(self):
+        id_ = self.kwargs.get("auc_id")
+        return get_object_or_404(Auction, id=id_)
+
+      
 
 #Readfull
 class AuctionReadView(View):
@@ -235,7 +250,7 @@ class AuctionDeleteView(LoginRequiredMixin, DeleteView):
         return reverse('dashboard')
 
 
-#api views
+#Auction api views
 class ApiAuctionListView(generics.ListCreateAPIView):
     queryset = Auction.objects.all()
     serializer_class = AuctionSerializer
@@ -267,7 +282,6 @@ class BidCreateView(LoginRequiredMixin, View):
         )
 
     def post(self, request, auction_id):
-        from tasks import create_bid_email
         form = BidForm(request.POST or None)
         if not form.is_valid():
             return render(
@@ -324,7 +338,6 @@ class BidCreateView(LoginRequiredMixin, View):
 
 
 #Bid ban
-
 class AuctionBanView(LoginRequiredMixin, UserPassesTestMixin, View):
 
     def post(self, request, auction_id):
@@ -345,5 +358,52 @@ class AuctionBanView(LoginRequiredMixin, UserPassesTestMixin, View):
 
     def test_func(self):
         return self.request.user.is_superuser
+#Bid Api
+class ApiBidCreateView(APIView):
+    permission_classes = (IsAuthorOrReadOnly,)  # permission
+    def post(self, request, auction_id, version):
+        serializer = BidSerializer(data=request.data or None)
+        serializer.is_valid(raise_exception=True)
+        amount = serializer.validated_data['amount']
+        bid = None
+        detail = None
+        status_code = None
+        try:
+            '''
+            atomic insures no other user can insert a new bid after we have validated
+            our bid as the greatest but before we have time to persist it.
+            '''
+            with transaction.atomic():
+                auction = get_object_or_404(Auction, pk=auction_id)
+                if auction.compare_version(version) != 0:
+                    raise ValidationError()
+                bid = auction.state.place_bid(request.user, amount)  
+            email = create_bid_email(bid, auction)
+            auction.send_email(email[0], email[1])
+        except IntegrityError:
+            detail = "Bid is too small."
+            status_code = status.HTTP_402_PAYMENT_REQUIRED
+        except PermissionDenied:
+            detail = "May not bid on own auction."
+            status_code = status.HTTP_403_FORBIDDEN
+        except DueAuctionException:
+            detail = "Deadline has passed."
+            status_code = status.HTTP_423_LOCKED
+        except DoneAuctionException:
+            detail = "Deadline has passed."
+            status_code = status.HTTP_423_LOCKED
+        except BannedAuctionException:
+            detail = "Auction is banned."
+            status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+        except ValidationError:
+            detail = "Auction has been modified."
+            status_code = status.HTTP_409_CONFLICT
 
+        if bid is not None:
+            return Response(BidSerializer(bid).data, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'status': status_code, 'detail': detail}, status=status_code)
 
+#about
+def about(request):
+    return render(request, 'auctionsapp/about.html', {'title': _('About')})

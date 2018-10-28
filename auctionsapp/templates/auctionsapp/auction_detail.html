@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Auctions Details{% endblock %}
+
+{% block content %}
+<h1>{{ object.title }}</h1>
+<p>{{ object.description }}</p>
+<p>Author: {{ object.author }}</p>
+<p>Version: {{ object.version}}</p>
+<p>Min Price: {{ object.min_price }}</p>
+<p>Published: {{ object.created|date }}</p>
+<p>Date: {{ now|date }}</p>
+{% endblock content%}

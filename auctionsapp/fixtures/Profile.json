@@ -1,0 +1,29 @@
+[
+{
+  "model": "auctionsapp.profile",
+  "pk": 8,
+  "fields": {
+    "user": 15,
+    "date_of_birth": null,
+    "photo": ""
+  }
+},
+{
+  "model": "auctionsapp.profile",
+  "pk": 9,
+  "fields": {
+    "user": 16,
+    "date_of_birth": null,
+    "photo": ""
+  }
+},
+{
+  "model": "auctionsapp.profile",
+  "pk": 10,
+  "fields": {
+    "user": 17,
+    "date_of_birth": null,
+    "photo": ""
+  }
+}
+]

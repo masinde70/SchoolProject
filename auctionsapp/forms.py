@@ -55,8 +55,6 @@ class AuctionForm(ModelForm):
             auction.save()
         return auction
 
-
-
 class BidForm(ModelForm):
     class Meta:
         model = Bid

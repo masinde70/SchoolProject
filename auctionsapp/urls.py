@@ -29,6 +29,9 @@ path('read_list/', views.AuctionListView.as_view(),  name="read_list"),
 path('create/auctions/new', views.AuctionConfirmView.as_view(), name='confirm'),
 #edit
 path('<int:auction_id>/edit', views.AuctionUpdateView.as_view(), name='auction_edit'),
+
+#Detail
+path('<int:pk>/',views.AuctionDetail.as_view(), name='auction-detail'),
 #delete
 path('<int:pk>/delete', views.AuctionDeleteView.as_view(), name='delete_auction'),
 #read full
@@ -40,4 +43,6 @@ path('<int:auction_id>', views.BidCreateView.as_view(), name='bid_create'),
 #api
 path('api/', views.ApiAuctionListView.as_view()),
 path('api/<int:pk>', views.AuctionDetail.as_view()),
+path('apibid/', views.ApiBidCreateView.as_view())
+
 ]

@@ -34,13 +34,10 @@ class Auction(models.Model):
 
     title = models.CharField(max_length=250) #This is the field for the auction title. This field is CharField, which translates into a VARCHAR column in the SQL database.
 
-    slug  = models.SlugField(max_length=250, unique_for_date='publish') #This is a field intended to be used in URLs.
-    # A slug is a short label that contains only letters, numbers, underscore, or hyphens.
 
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auction_author') #This field is a foreign key. It defines a many-to-one relationship.
     # We are telling Django that each post is written by a user, and a user can write any number of posts
-    photo = models.ImageField(upload_to='users/%Y/%m/%d/',
-                              blank=True)
+   
     created = models.DateTimeField(
         auto_now_add=True, #set to now upon creation
         editable=False,

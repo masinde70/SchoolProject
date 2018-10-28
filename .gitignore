@@ -34,6 +34,9 @@ coverage.xml
 # Translations
 *.pot
 
+#dependences
+.txt
+
 # Django stuff:
 *.log
 
@@ -42,3 +45,7 @@ docs/_build/
 
 # PyBuilder
 target/
+
+#localsetting
+.vscode
+.idea
